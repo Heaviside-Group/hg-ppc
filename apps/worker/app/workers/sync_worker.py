@@ -103,6 +103,7 @@ async def process_sync_job(job: Any, token: str | None = None) -> dict:
 async def start_worker() -> None:
     """Start the BullMQ worker."""
     global _worker
+    import asyncio
 
     logger.info(f"Starting sync worker (queue: {QUEUE_NAME})...")
 
@@ -117,14 +118,10 @@ async def start_worker() -> None:
 
     logger.info("Sync worker started successfully")
 
-    # Keep the worker running
+    # Keep the worker running - worker processes jobs automatically
     try:
         while True:
-            await _worker.waitUntilReady()
-            # Worker will process jobs automatically
-            import asyncio
-
-            await asyncio.sleep(1)
+            await asyncio.sleep(60)
     except Exception as e:
         logger.error(f"Worker error: {e}")
         raise
