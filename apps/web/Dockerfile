@@ -8,8 +8,12 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable pnpm
 
-# Copy package files
+# Copy workspace configuration first
+COPY pnpm-workspace.yaml ./
 COPY package.json pnpm-lock.yaml* ./
+COPY turbo.json ./
+
+# Copy all package.json files
 COPY apps/web/package.json ./apps/web/
 COPY packages/db/package.json ./packages/db/
 
@@ -22,9 +26,9 @@ WORKDIR /app
 
 RUN corepack enable pnpm
 
+# Copy all node_modules (pnpm hoists to root)
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=deps /app/pnpm-workspace.yaml ./
 COPY . .
 
 # Build arguments for database URL (needed for Drizzle schema generation)
