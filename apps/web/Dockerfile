@@ -24,12 +24,15 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 WORKDIR /app
 
+RUN apk add --no-cache libc6-compat
 RUN corepack enable pnpm
 
-# Copy all node_modules (pnpm hoists to root)
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/pnpm-workspace.yaml ./
+# Copy source code first
 COPY . .
+
+# Copy node_modules from deps and reinstall to fix pnpm symlinks
+COPY --from=deps /app/node_modules ./node_modules
+RUN pnpm install --frozen-lockfile
 
 # Build arguments for database URL (needed for Drizzle schema generation)
 ARG DATABASE_URL
