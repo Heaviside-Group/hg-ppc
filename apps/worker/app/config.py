@@ -26,8 +26,13 @@ class Settings(BaseSettings):
     # Worker
     worker_concurrency: int = 5
 
-    # Encryption (for Phase 1 - decrypting OAuth tokens)
+    # Encryption (for decrypting OAuth tokens)
     encryption_key: str = ""
+
+    # Google Ads API
+    google_ads_developer_token: str = ""
+    google_client_id: str = ""
+    google_client_secret: str = ""
 
 
 settings = Settings()

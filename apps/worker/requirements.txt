@@ -14,9 +14,11 @@ python-dotenv>=1.0.0
 pydantic>=2.10.0
 pydantic-settings>=2.6.0
 
-# Ads APIs (for Phase 1)
-# google-ads>=24.0.0
-# facebook-business>=20.0.0
+# Cryptography
+cryptography>=42.0.0
+
+# Ads APIs
+google-ads>=24.0.0
 
 # Dev
 pytest>=8.0.0

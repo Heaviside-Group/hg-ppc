@@ -6,7 +6,9 @@ from typing import Any
 from bullmq import Worker
 
 from app.config import settings
+from app.crypto import decrypt_json
 from app.db import get_db, set_workspace_context
+from app.integrations import GoogleAdsIntegration, MetaAdsIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -15,88 +17,138 @@ QUEUE_NAME = "ppc-sync"
 _worker: Worker | None = None
 
 
+async def get_integration_credentials(
+    conn: Any,
+    integration_id: str,
+) -> tuple[str, dict[str, Any]]:
+    """Get and decrypt integration credentials.
+
+    Args:
+        conn: Database connection.
+        integration_id: Integration ID.
+
+    Returns:
+        Tuple of (provider, decrypted_credentials).
+    """
+    result = await conn.execute(
+        """
+        SELECT i.provider, ic.encrypted_blob, ic.iv, ic.auth_tag
+        FROM integrations i
+        JOIN integration_credentials ic ON ic.integration_id = i.id
+        WHERE i.id = %s AND i.status = 'active'
+        """,
+        (integration_id,),
+    )
+    row = await result.fetchone()
+
+    if not row:
+        raise ValueError(f"Integration {integration_id} not found or not active")
+
+    provider = row["provider"]
+    credentials = decrypt_json(
+        row["encrypted_blob"],
+        row["iv"],
+        row["auth_tag"],
+    )
+
+    return provider, credentials
+
+
 async def process_sync_job(job: Any, token: str | None = None) -> dict:
     """Process a sync job.
 
-    In Phase 0, this is a placeholder. In Phase 1, this will:
-    - Fetch data from Google Ads or Meta APIs
-    - Transform and load into PostgreSQL
-    - Update sync_jobs table with status
+    Routes to the appropriate integration based on provider type.
     """
     job_data = job.data
     job_type = job.name
 
+    workspace_id = job_data.get("workspaceId")
+    integration_id = job_data.get("integrationId")
+    provider = job_data.get("provider")
+
     logger.info(
         f"Processing sync job {job.id}: type={job_type}, "
-        f"workspace={job_data.get('workspaceId')}, "
-        f"integration={job_data.get('integrationId')}"
+        f"workspace={workspace_id}, "
+        f"integration={integration_id}, "
+        f"provider={provider}"
     )
 
     try:
-        workspace_id = job_data.get("workspaceId")
-        integration_id = job_data.get("integrationId")
-
         async with get_db() as conn:
             # Set RLS context
             await set_workspace_context(conn, workspace_id)
 
-            # Update job status to running
-            await conn.execute(
-                """
-                UPDATE sync_jobs
-                SET status = 'running', started_at = NOW(), updated_at = NOW()
-                WHERE integration_id = %s AND status = 'pending'
-                LIMIT 1
-                """,
-                (integration_id,),
+            # Get credentials
+            db_provider, credentials = await get_integration_credentials(
+                conn, integration_id
             )
 
-            # Placeholder: Actual sync logic will be implemented in Phase 1
-            # For now, just simulate some work
-            logger.info(f"Job {job.id}: Would sync data for integration {integration_id}")
+            # Verify provider matches
+            if provider and db_provider != provider:
+                raise ValueError(
+                    f"Provider mismatch: job says {provider}, db says {db_provider}"
+                )
 
-            # Update job status to completed
-            await conn.execute(
-                """
-                UPDATE sync_jobs
-                SET status = 'completed', completed_at = NOW(), updated_at = NOW(),
-                    metadata = jsonb_set(COALESCE(metadata, '{}'), '{message}', '"Phase 0 placeholder"')
-                WHERE integration_id = %s AND status = 'running'
-                LIMIT 1
-                """,
-                (integration_id,),
-            )
+            # Create integration instance
+            if db_provider == "google_ads":
+                integration = GoogleAdsIntegration(
+                    workspace_id,
+                    integration_id,
+                    credentials,
+                )
+            elif db_provider == "meta":
+                integration = MetaAdsIntegration(
+                    workspace_id,
+                    integration_id,
+                    credentials,
+                )
+            else:
+                raise ValueError(f"Unsupported provider: {db_provider}")
+
+            # Route to appropriate sync method
+            if job_type == "sync_all":
+                result = await integration.sync_all(conn)
+            elif job_type == "sync_account":
+                account_id = job_data.get("adAccountId")
+                if not account_id:
+                    raise ValueError("sync_account requires adAccountId")
+                result = await integration.sync_account(conn, account_id)
+            elif job_type == "sync_campaigns":
+                account_id = job_data.get("adAccountId")
+                if not account_id:
+                    raise ValueError("sync_campaigns requires adAccountId")
+                count = await integration.sync_campaigns(conn, account_id)
+                result = {"campaigns_synced": count}
+            elif job_type == "sync_metrics":
+                account_id = job_data.get("adAccountId")
+                date_range = job_data.get("dateRange", {})
+                start_date = date_range.get("startDate")
+                end_date = date_range.get("endDate")
+                if not account_id or not start_date or not end_date:
+                    raise ValueError(
+                        "sync_metrics requires adAccountId and dateRange"
+                    )
+                count = await integration.sync_metrics(
+                    conn, account_id, start_date, end_date
+                )
+                result = {"metrics_synced": count}
+            else:
+                raise ValueError(f"Unknown job type: {job_type}")
 
             await conn.commit()
 
         await job.updateProgress(100)
 
+        logger.info(f"Job {job.id} completed: {result}")
+
         return {
             "success": True,
-            "message": "Job completed (Phase 0 placeholder)",
             "jobId": job.id,
+            **result,
         }
 
     except Exception as e:
         logger.error(f"Job {job.id} failed: {e}")
-
-        # Try to update job status to failed
-        try:
-            async with get_db() as conn:
-                await conn.execute(
-                    """
-                    UPDATE sync_jobs
-                    SET status = 'failed', completed_at = NOW(), updated_at = NOW(),
-                        error = %s
-                    WHERE integration_id = %s AND status IN ('pending', 'running')
-                    LIMIT 1
-                    """,
-                    (str(e), job_data.get("integrationId")),
-                )
-                await conn.commit()
-        except Exception as update_error:
-            logger.error(f"Failed to update job status: {update_error}")
-
         raise
 
 
