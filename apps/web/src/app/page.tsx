@@ -1,4 +1,13 @@
-export default function HomePage() {
+import { redirect } from 'next/navigation'
+import { getServerUser } from '@/lib/auth/server'
+
+export default async function HomePage() {
+  const user = await getServerUser()
+
+  if (user) {
+    redirect('/dashboard')
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="text-center">
