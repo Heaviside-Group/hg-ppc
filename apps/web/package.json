@@ -9,18 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.700.0",
     "@hg-ppc/db": "workspace:*",
     "bullmq": "^5.34.3",
     "drizzle-orm": "^0.38.3",
     "ioredis": "^5.4.2",
+    "jsonwebtoken": "^9.0.2",
     "next": "15.1.3",
-    "next-auth": "5.0.0-beta.25",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "bcryptjs": "^2.4.3"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

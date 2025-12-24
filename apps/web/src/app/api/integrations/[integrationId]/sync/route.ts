@@ -4,8 +4,8 @@
  * POST - Trigger a manual sync for an integration.
  */
 
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isAuthUser } from '@/lib/auth/api'
 import { getDb, integrations, workspaceMemberships } from '@hg-ppc/db'
 import { eq, and } from 'drizzle-orm'
 import { enqueueSyncAll } from '@/lib/queues/syncQueue'
@@ -16,12 +16,13 @@ interface RouteContext {
   params: Promise<{ integrationId: string }>
 }
 
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const { integrationId } = await context.params
     const db = getDb()
@@ -49,7 +50,7 @@ export async function POST(request: Request, context: RouteContext) {
     // Verify user has access to this workspace
     const membership = await db.query.workspaceMemberships.findFirst({
       where: and(
-        eq(workspaceMemberships.userId, session.user.id),
+        eq(workspaceMemberships.userId, user.id),
         eq(workspaceMemberships.workspaceId, integration.workspaceId)
       ),
     })

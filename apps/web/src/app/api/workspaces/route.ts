@@ -1,16 +1,17 @@
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isAuthUser } from '@/lib/auth/api'
 import { getDb, workspaces, workspaceMemberships } from '@hg-ppc/db'
 import { eq } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const db = getDb()
 
@@ -24,7 +25,7 @@ export async function GET() {
       })
       .from(workspaceMemberships)
       .innerJoin(workspaces, eq(workspaceMemberships.workspaceId, workspaces.id))
-      .where(eq(workspaceMemberships.userId, session.user.id))
+      .where(eq(workspaceMemberships.userId, user.id))
 
     return NextResponse.json({ workspaces: userWorkspaces })
   } catch (error) {
@@ -36,12 +37,13 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const { name, slug } = await request.json()
 
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
 
     // Add user as owner
     await db.insert(workspaceMemberships).values({
-      userId: session.user.id,
+      userId: user.id,
       workspaceId: newWorkspace.id,
       role: 'owner',
     })

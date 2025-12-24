@@ -5,8 +5,8 @@
  * DELETE - Disconnect integration (set status to 'revoked').
  */
 
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isAuthUser } from '@/lib/auth/api'
 import {
   getDb,
   integrations,
@@ -21,12 +21,13 @@ interface RouteContext {
   params: Promise<{ integrationId: string }>
 }
 
-export async function GET(request: Request, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const { integrationId } = await context.params
     const db = getDb()
@@ -49,7 +50,7 @@ export async function GET(request: Request, context: RouteContext) {
     // Verify user has access to this workspace
     const membership = await db.query.workspaceMemberships.findFirst({
       where: and(
-        eq(workspaceMemberships.userId, session.user.id),
+        eq(workspaceMemberships.userId, user.id),
         eq(workspaceMemberships.workspaceId, integration.workspaceId)
       ),
     })
@@ -71,12 +72,13 @@ export async function GET(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(request: Request, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const { integrationId } = await context.params
     const db = getDb()
@@ -96,7 +98,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     // Verify user has admin/owner access to this workspace
     const membership = await db.query.workspaceMemberships.findFirst({
       where: and(
-        eq(workspaceMemberships.userId, session.user.id),
+        eq(workspaceMemberships.userId, user.id),
         eq(workspaceMemberships.workspaceId, integration.workspaceId)
       ),
     })

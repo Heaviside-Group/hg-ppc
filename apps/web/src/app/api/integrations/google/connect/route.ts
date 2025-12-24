@@ -5,20 +5,21 @@
  * Requires workspaceId query parameter.
  */
 
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isAuthUser } from '@/lib/auth/api'
 import { getDb, workspaceMemberships } from '@hg-ppc/db'
 import { and, eq } from 'drizzle-orm'
 import { getGoogleAuthUrl } from '@/lib/oauth/google'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId')
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
     const db = getDb()
     const membership = await db.query.workspaceMemberships.findFirst({
       where: and(
-        eq(workspaceMemberships.userId, session.user.id),
+        eq(workspaceMemberships.userId, user.id),
         eq(workspaceMemberships.workspaceId, workspaceId)
       ),
     })
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
     }
 
     // Generate OAuth URL with state parameter
-    const authUrl = getGoogleAuthUrl(workspaceId, session.user.id)
+    const authUrl = getGoogleAuthUrl(workspaceId, user.id)
 
     // Redirect to Google OAuth consent
     return NextResponse.redirect(authUrl)

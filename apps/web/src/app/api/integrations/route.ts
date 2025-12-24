@@ -4,19 +4,20 @@
  * GET - List all integrations for the current workspace with ad account counts.
  */
 
-import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isAuthUser } from '@/lib/auth/api'
 import { getDb, integrations, adAccounts, workspaceMemberships } from '@hg-ppc/db'
 import { eq, and, count } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await requireAuth(request)
+    if (!isAuthUser(authResult)) {
+      return authResult
     }
+    const user = authResult
 
     const { searchParams } = new URL(request.url)
     const workspaceId = searchParams.get('workspaceId')
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     // Verify user has access to this workspace
     const membership = await db.query.workspaceMemberships.findFirst({
       where: and(
-        eq(workspaceMemberships.userId, session.user.id),
+        eq(workspaceMemberships.userId, user.id),
         eq(workspaceMemberships.workspaceId, workspaceId)
       ),
     })

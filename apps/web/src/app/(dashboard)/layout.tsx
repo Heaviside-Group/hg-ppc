@@ -1,17 +1,18 @@
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getServerUser } from '@/lib/auth/server'
 import { Sidebar } from '@/components/Sidebar'
 import { WorkspaceSelector } from '@/components/WorkspaceSelector'
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext'
+import { LogoutButton } from '@/components/LogoutButton'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth()
+  const user = await getServerUser()
 
-  if (!session?.user) {
+  if (!user) {
     redirect('/login')
   }
 
@@ -26,16 +27,9 @@ export default async function DashboardLayout({
             </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">
-                {session.user.email}
+                {user.email}
               </span>
-              <form action="/api/auth/signout" method="POST">
-                <button
-                  type="submit"
-                  className="text-sm text-gray-500 hover:text-gray-700"
-                >
-                  Sign out
-                </button>
-              </form>
+              <LogoutButton />
             </div>
           </header>
           <main className="flex-1 overflow-auto bg-gray-50 p-6">

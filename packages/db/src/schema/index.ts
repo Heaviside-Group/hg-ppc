@@ -2,6 +2,7 @@
  * Schema barrel export
  */
 export * from './core'
+export * from './auth'
 export * from './integrations'
 export * from './entities'
 export * from './metrics'

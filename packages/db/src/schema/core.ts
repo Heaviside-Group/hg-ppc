@@ -111,6 +111,7 @@ export const workspacesRelations = relations(workspaces, ({ many }) => ({
   clients: many(clients),
 }))
 
+// Note: sessions relation is defined in auth.ts to avoid circular imports
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(workspaceMemberships),
 }))
