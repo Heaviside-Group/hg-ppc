@@ -9,7 +9,14 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.db import get_db
-from app.workers.sync_worker import start_worker, stop_worker
+from app.workers.sync_worker import (
+    start_worker as start_sync_worker,
+    stop_worker as stop_sync_worker,
+)
+from app.workers.mutation_worker import (
+    start_worker as start_mutation_worker,
+    stop_worker as stop_mutation_worker,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -24,21 +31,28 @@ async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown events."""
     logger.info("Starting HG PPC Worker Service...")
 
-    # Start the BullMQ worker
-    worker_task = asyncio.create_task(start_worker())
+    # Start both BullMQ workers
+    sync_task = asyncio.create_task(start_sync_worker())
+    mutation_task = asyncio.create_task(start_mutation_worker())
 
-    logger.info("Worker service started successfully")
+    logger.info("Worker service started successfully (sync + mutation)")
 
     yield
 
     # Shutdown
     logger.info("Shutting down worker service...")
-    await stop_worker()
-    worker_task.cancel()
-    try:
-        await worker_task
-    except asyncio.CancelledError:
-        pass
+    await stop_sync_worker()
+    await stop_mutation_worker()
+
+    sync_task.cancel()
+    mutation_task.cancel()
+
+    for task in [sync_task, mutation_task]:
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
     logger.info("Worker service stopped")
 
 

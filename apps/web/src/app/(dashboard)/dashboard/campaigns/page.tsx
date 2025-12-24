@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { DateRangePicker, defaultDateRange, type DateRange } from '@/components/DateRangePicker'
-import { CampaignTable } from '@/components/CampaignTable'
+import { CampaignTable, type CampaignData } from '@/components/CampaignTable'
+import { CampaignEditModal, type CampaignUpdates } from '@/components/CampaignEditModal'
 import { useCampaigns } from '@/hooks/useReporting'
 
 type ProviderFilter = 'all' | 'google_ads' | 'meta'
@@ -14,13 +15,36 @@ export default function CampaignsPage() {
   const [dateRange, setDateRange] = useState<DateRange>(defaultDateRange)
   const [providerFilter, setProviderFilter] = useState<ProviderFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [editingCampaign, setEditingCampaign] = useState<CampaignData | null>(null)
 
-  const { data, loading, error } = useCampaigns({
+  const { data, loading, error, refetch } = useCampaigns({
     workspaceId: workspace?.id || null,
     dateRange,
     provider: providerFilter === 'all' ? undefined : providerFilter,
     status: statusFilter === 'all' ? undefined : statusFilter,
   })
+
+  const handleCampaignClick = (campaign: CampaignData) => {
+    setEditingCampaign(campaign)
+  }
+
+  const handleSaveCampaign = async (updates: CampaignUpdates) => {
+    if (!editingCampaign) return
+
+    const response = await fetch(`/api/campaigns/${editingCampaign.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to update campaign')
+    }
+
+    // Refresh the campaign list
+    await refetch()
+  }
 
   if (workspaceLoading) {
     return (
@@ -142,7 +166,11 @@ export default function CampaignsPage() {
       )}
 
       {/* Campaigns Table */}
-      <CampaignTable campaigns={data?.campaigns || []} loading={loading} />
+      <CampaignTable
+        campaigns={data?.campaigns || []}
+        loading={loading}
+        onCampaignClick={handleCampaignClick}
+      />
 
       {/* Empty State with Filters */}
       {!loading && data?.campaigns.length === 0 && (providerFilter !== 'all' || statusFilter !== 'all') && (
@@ -162,6 +190,14 @@ export default function CampaignsPage() {
           </p>
         </div>
       )}
+
+      {/* Edit Modal */}
+      <CampaignEditModal
+        campaign={editingCampaign}
+        isOpen={!!editingCampaign}
+        onClose={() => setEditingCampaign(null)}
+        onSave={handleSaveCampaign}
+      />
     </div>
   )
 }
