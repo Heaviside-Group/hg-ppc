@@ -17,6 +17,10 @@ from app.workers.mutation_worker import (
     start_worker as start_mutation_worker,
     stop_worker as stop_mutation_worker,
 )
+from app.workers.insights_worker import (
+    start_worker as start_insights_worker,
+    stop_worker as stop_insights_worker,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -31,11 +35,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown events."""
     logger.info("Starting HG PPC Worker Service...")
 
-    # Start both BullMQ workers
+    # Start all BullMQ workers
     sync_task = asyncio.create_task(start_sync_worker())
     mutation_task = asyncio.create_task(start_mutation_worker())
+    insights_task = asyncio.create_task(start_insights_worker())
 
-    logger.info("Worker service started successfully (sync + mutation)")
+    logger.info("Worker service started successfully (sync + mutation + insights)")
 
     yield
 
@@ -43,11 +48,13 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down worker service...")
     await stop_sync_worker()
     await stop_mutation_worker()
+    await stop_insights_worker()
 
     sync_task.cancel()
     mutation_task.cancel()
+    insights_task.cancel()
 
-    for task in [sync_task, mutation_task]:
+    for task in [sync_task, mutation_task, insights_task]:
         try:
             await task
         except asyncio.CancelledError:

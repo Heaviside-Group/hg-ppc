@@ -151,3 +151,108 @@ export function useCampaigns({
 
   return { data, loading, error, refetch: fetchData }
 }
+
+// Insights types
+interface Anomaly {
+  campaignId: string
+  campaignName: string
+  provider: string
+  metric: string
+  currentValue: number
+  expectedValue: number
+  deviationPct: number
+  severity: 'warning' | 'critical'
+  direction: 'increase' | 'decrease'
+  message: string
+}
+
+interface BudgetRecommendation {
+  campaignId: string
+  campaignName: string
+  provider: string
+  currentBudget: number
+  recommendedBudget: number
+  changePct: number
+  reason: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+interface Forecast {
+  metric: string
+  metricName: string
+  currentPeriodActual: number
+  currentPeriodProjected: number
+  nextPeriodForecast: number
+  trend: 'up' | 'down' | 'stable'
+  trendPct: number
+  confidence: 'high' | 'medium' | 'low'
+}
+
+interface PacingStatus {
+  campaignId: string
+  campaignName: string
+  provider: string
+  periodBudget: number
+  spentToDate: number
+  pacingStatus: 'on_track' | 'underspending' | 'overspending'
+  projectedSpend: number
+  projectedVariance: number
+  recommendation: string
+}
+
+export interface InsightsResponse {
+  generatedAt: string
+  healthScore: number
+  keyInsights: string[]
+  anomalies: {
+    total: number
+    critical: number
+    warning: number
+    items: Anomaly[]
+  }
+  budgetRecommendations: BudgetRecommendation[]
+  forecasts: Forecast[]
+  pacing: PacingStatus[]
+}
+
+interface UseInsightsOptions {
+  workspaceId: string | null
+}
+
+export function useInsights({ workspaceId }: UseInsightsOptions) {
+  const [data, setData] = useState<InsightsResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchData = useCallback(async () => {
+    if (!workspaceId) {
+      setData(null)
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const params = new URLSearchParams({ workspaceId })
+      const response = await fetch(`/api/insights?${params}`)
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch insights')
+      }
+
+      const result: InsightsResponse = await response.json()
+      setData(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+    } finally {
+      setLoading(false)
+    }
+  }, [workspaceId])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  return { data, loading, error, refetch: fetchData }
+}

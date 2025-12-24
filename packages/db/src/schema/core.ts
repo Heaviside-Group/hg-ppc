@@ -102,6 +102,26 @@ export const clients = pgTable('clients', {
   deletedAt: timestamp('deleted_at'),
 })
 
+/**
+ * Workspace Insights - Cached AI-generated insights
+ */
+export const workspaceInsights = pgTable('workspace_insights', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  workspaceId: uuid('workspace_id')
+    .notNull()
+    .references(() => workspaces.id, { onDelete: 'cascade' })
+    .unique(),
+  insightsJson: jsonb('insights_json').$type<{
+    healthScore: number
+    keyInsights: string[]
+    anomalies: unknown
+    budgetRecommendations: unknown[]
+    forecasts: unknown[]
+    pacing: unknown[]
+  }>(),
+  generatedAt: timestamp('generated_at').defaultNow().notNull(),
+})
+
 // ============================================================================
 // Relations
 // ============================================================================
@@ -152,3 +172,6 @@ export type WorkspaceMembershipInsert = typeof workspaceMemberships.$inferInsert
 
 export type Client = typeof clients.$inferSelect
 export type ClientInsert = typeof clients.$inferInsert
+
+export type WorkspaceInsight = typeof workspaceInsights.$inferSelect
+export type WorkspaceInsightInsert = typeof workspaceInsights.$inferInsert
