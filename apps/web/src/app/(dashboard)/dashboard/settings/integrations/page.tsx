@@ -15,6 +15,12 @@ interface Integration {
   createdAt: string
 }
 
+interface DisconnectConfirmation {
+  isOpen: boolean
+  integrationId: string | null
+  providerName: string
+}
+
 const PROVIDER_INFO = {
   google_ads: {
     name: 'Google Ads',
@@ -34,6 +40,12 @@ export default function IntegrationsPage() {
   const searchParams = useSearchParams()
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [loading, setLoading] = useState(true)
+  const [disconnectConfirm, setDisconnectConfirm] = useState<DisconnectConfirmation>({
+    isOpen: false,
+    integrationId: null,
+    providerName: '',
+  })
+  const [disconnecting, setDisconnecting] = useState(false)
 
   // Handle success/error query params from OAuth callback
   useEffect(() => {
@@ -106,24 +118,42 @@ export default function IntegrationsPage() {
     window.location.href = `${connectPath}?workspaceId=${workspace.id}`
   }
 
-  const handleDisconnect = async (integrationId: string) => {
-    if (!confirm('Are you sure you want to disconnect this integration? This will remove all synced data.')) {
-      return
-    }
+  const openDisconnectConfirm = (integrationId: string, providerName: string) => {
+    setDisconnectConfirm({
+      isOpen: true,
+      integrationId,
+      providerName,
+    })
+  }
 
+  const closeDisconnectConfirm = () => {
+    setDisconnectConfirm({
+      isOpen: false,
+      integrationId: null,
+      providerName: '',
+    })
+  }
+
+  const handleDisconnect = async () => {
+    if (!disconnectConfirm.integrationId) return
+
+    setDisconnecting(true)
     try {
-      const response = await fetch(`/api/integrations/${integrationId}`, {
+      const response = await fetch(`/api/integrations/${disconnectConfirm.integrationId}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
-        setIntegrations((prev) => prev.filter((i) => i.id !== integrationId))
-        addToast('success', 'Integration disconnected successfully')
+        setIntegrations((prev) => prev.filter((i) => i.id !== disconnectConfirm.integrationId))
+        addToast('success', `${disconnectConfirm.providerName} disconnected successfully`)
       } else {
-        addToast('error', 'Failed to disconnect integration')
+        addToast('error', `Failed to disconnect ${disconnectConfirm.providerName}`)
       }
     } catch {
       addToast('error', 'Network error disconnecting integration')
+    } finally {
+      setDisconnecting(false)
+      closeDisconnectConfirm()
     }
   }
 
@@ -213,7 +243,7 @@ export default function IntegrationsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDisconnect(integration!.id)}
+                        onClick={() => openDisconnectConfirm(integration!.id, info.name)}
                         className="text-sm font-medium text-red-600 hover:text-red-500"
                       >
                         Disconnect
@@ -243,6 +273,53 @@ export default function IntegrationsPage() {
           For Meta, you&apos;ll need Business Manager admin access.
         </p>
       </div>
+
+      {/* Disconnect Confirmation Modal */}
+      {disconnectConfirm.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={closeDisconnectConfirm}
+          />
+          {/* Modal */}
+          <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Disconnect {disconnectConfirm.providerName}?
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  This will remove all synced data for this integration. You can reconnect at any time.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDisconnectConfirm}
+                disabled={disconnecting}
+                className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 disabled:opacity-50"
+              >
+                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
