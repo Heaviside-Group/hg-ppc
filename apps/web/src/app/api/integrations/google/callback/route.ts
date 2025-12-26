@@ -35,13 +35,13 @@ export async function GET(request: Request) {
     if (error) {
       console.error('Google OAuth error:', error)
       return NextResponse.redirect(
-        `${baseUrl}/settings/integrations?error=${encodeURIComponent(error)}`
+        `${baseUrl}/dashboard/settings/integrations?error=${encodeURIComponent(error)}`
       )
     }
 
     if (!code || !state) {
       return NextResponse.redirect(
-        `${baseUrl}/settings/integrations?error=missing_params`
+        `${baseUrl}/dashboard/settings/integrations?error=missing_params`
       )
     }
 
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     } catch (err) {
       console.error('Invalid state:', err)
       return NextResponse.redirect(
-        `${baseUrl}/settings/integrations?error=invalid_state`
+        `${baseUrl}/dashboard/settings/integrations?error=invalid_state`
       )
     }
 
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 
     if (!tokens.refreshToken) {
       return NextResponse.redirect(
-        `${baseUrl}/settings/integrations?error=no_refresh_token`
+        `${baseUrl}/dashboard/settings/integrations?error=no_refresh_token`
       )
     }
 
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       )
 
       return NextResponse.redirect(
-        `${baseUrl}/settings/integrations?success=google_reconnected`
+        `${baseUrl}/dashboard/settings/integrations?success=google_reconnected`
       )
     }
 
@@ -142,12 +142,12 @@ export async function GET(request: Request) {
     await syncAdAccounts(db, newIntegration.id, workspaceId, tokens.accessToken)
 
     return NextResponse.redirect(
-      `${baseUrl}/settings/integrations?success=google_connected`
+      `${baseUrl}/dashboard/settings/integrations?success=google_connected`
     )
   } catch (error) {
     console.error('Google OAuth callback error:', error)
     return NextResponse.redirect(
-      `${baseUrl}/settings/integrations?error=callback_failed`
+      `${baseUrl}/dashboard/settings/integrations?error=callback_failed`
     )
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useWorkspace } from '@/contexts/WorkspaceContext'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -30,8 +31,40 @@ const PROVIDER_INFO = {
 export default function IntegrationsPage() {
   const { workspace } = useWorkspace()
   const { addToast } = useToast()
+  const searchParams = useSearchParams()
   const [integrations, setIntegrations] = useState<Integration[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Handle success/error query params from OAuth callback
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+
+    if (success) {
+      const messages: Record<string, string> = {
+        google_connected: 'Google Ads connected successfully!',
+        google_reconnected: 'Google Ads reconnected successfully!',
+        meta_connected: 'Meta Ads connected successfully!',
+        meta_reconnected: 'Meta Ads reconnected successfully!',
+      }
+      addToast('success', messages[success] || 'Integration connected!')
+      // Clean up URL
+      window.history.replaceState({}, '', '/dashboard/settings/integrations')
+    }
+
+    if (error) {
+      const messages: Record<string, string> = {
+        missing_params: 'OAuth flow was interrupted. Please try again.',
+        invalid_state: 'Security validation failed. Please try again.',
+        no_refresh_token: 'Could not get refresh token. Please disconnect and reconnect.',
+        callback_failed: 'Connection failed. Please try again.',
+        access_denied: 'Access was denied. Please grant the required permissions.',
+      }
+      addToast('error', messages[error] || `Connection error: ${error}`)
+      // Clean up URL
+      window.history.replaceState({}, '', '/dashboard/settings/integrations')
+    }
+  }, [searchParams, addToast])
 
   useEffect(() => {
     if (!workspace?.id) {
