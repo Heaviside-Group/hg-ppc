@@ -162,11 +162,19 @@ async function syncAdAccounts(
   accessToken: string
 ) {
   try {
+    console.log('[Google Sync] Starting ad account discovery...')
     const accounts = await listAccessibleAccounts(accessToken)
+    console.log(`[Google Sync] Found ${accounts.length} accessible accounts`)
+
+    let synced = 0
+    let skipped = 0
 
     for (const account of accounts) {
-      // Skip manager accounts
+      console.log(`[Google Sync] Account ${account.customerId}: ${account.descriptiveName} (manager: ${account.manager})`)
+
+      // Skip manager accounts - they can't run ads directly
       if (account.manager) {
+        skipped++
         continue
       }
 
@@ -205,9 +213,12 @@ async function syncAdAccounts(
           status: 'active',
         })
       }
+      synced++
     }
+
+    console.log(`[Google Sync] Complete: ${synced} accounts synced, ${skipped} manager accounts skipped`)
   } catch (error) {
-    console.error('Failed to sync ad accounts:', error)
+    console.error('[Google Sync] Failed to sync ad accounts:', error)
     // Don't fail the whole flow, just log the error
     // Accounts can be synced later
   }

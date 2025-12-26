@@ -253,6 +253,7 @@ export async function listAccessibleAccounts(accessToken: string): Promise<
   }
 
   // Use the Google Ads REST API to list accessible customers
+  console.log('[Google OAuth] Calling listAccessibleCustomers API...')
   const response = await fetch(
     'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers',
     {
@@ -266,11 +267,14 @@ export async function listAccessibleAccounts(accessToken: string): Promise<
 
   if (!response.ok) {
     const error = await response.text()
+    console.error('[Google OAuth] listAccessibleCustomers failed:', response.status, error)
     throw new Error(`Failed to list accessible customers: ${error}`)
   }
 
   const data = await response.json()
+  console.log('[Google OAuth] listAccessibleCustomers response:', JSON.stringify(data))
   const resourceNames: string[] = data.resourceNames || []
+  console.log(`[Google OAuth] Found ${resourceNames.length} resource names:`, resourceNames)
 
   // Fetch details for each customer
   const accounts = await Promise.all(
@@ -304,6 +308,7 @@ async function fetchCustomerDetails(
   timeZone: string
   manager: boolean
 } | null> {
+  console.log(`[Google OAuth] Fetching details for customer ${customerId}...`)
   try {
     const response = await fetch(
       `https://googleads.googleapis.com/v18/customers/${customerId}`,
@@ -318,11 +323,13 @@ async function fetchCustomerDetails(
     )
 
     if (!response.ok) {
-      console.error(`Failed to fetch customer ${customerId}: ${response.status}`)
+      const errorText = await response.text()
+      console.error(`[Google OAuth] Failed to fetch customer ${customerId}: ${response.status}`, errorText)
       return null
     }
 
     const data = await response.json()
+    console.log(`[Google OAuth] Customer ${customerId} details:`, JSON.stringify(data))
 
     return {
       customerId,
@@ -332,7 +339,7 @@ async function fetchCustomerDetails(
       manager: data.manager || false,
     }
   } catch (error) {
-    console.error(`Error fetching customer ${customerId}:`, error)
+    console.error(`[Google OAuth] Error fetching customer ${customerId}:`, error)
     return null
   }
 }
