@@ -12,6 +12,7 @@ from bullmq import Worker, Queue
 from app.config import settings
 from app.db import get_db, set_workspace_context
 from app.analytics.insights import InsightsEngine
+from app.workers.heartbeat import start_worker_heartbeat, HeartbeatHandle
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,7 @@ QUEUE_NAME = "ppc-insights"
 
 _worker: Worker | None = None
 _queue: Queue | None = None
+_heartbeat: HeartbeatHandle | None = None
 
 
 async def get_active_workspaces(conn: Any) -> list[dict[str, Any]]:
@@ -302,7 +304,7 @@ async def enqueue_workspace_analysis(workspace_id: str) -> str:
 
 async def start_worker() -> None:
     """Start the BullMQ insights worker."""
-    global _worker
+    global _worker, _heartbeat
     import asyncio
 
     logger.info(f"Starting insights worker (queue: {QUEUE_NAME})...")
@@ -315,6 +317,8 @@ async def start_worker() -> None:
             "concurrency": 1,  # Run one analysis at a time
         },
     )
+
+    _heartbeat = start_worker_heartbeat(QUEUE_NAME)
 
     # Schedule daily analysis
     try:
@@ -336,7 +340,7 @@ async def start_worker() -> None:
 
 async def stop_worker() -> None:
     """Stop the BullMQ insights worker."""
-    global _worker, _queue
+    global _worker, _queue, _heartbeat
 
     if _worker:
         logger.info("Stopping insights worker...")
@@ -347,3 +351,7 @@ async def stop_worker() -> None:
     if _queue:
         await _queue.close()
         _queue = None
+
+    if _heartbeat:
+        await _heartbeat.stop()
+        _heartbeat = None

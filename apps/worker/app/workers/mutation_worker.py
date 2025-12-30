@@ -17,12 +17,14 @@ from app.integrations.meta_ads.mutations import (
     update_campaign_status as meta_update_status,
     update_campaign_budget as meta_update_budget,
 )
+from app.workers.heartbeat import start_worker_heartbeat, HeartbeatHandle
 
 logger = logging.getLogger(__name__)
 
 QUEUE_NAME = "ppc-mutation"
 
 _worker: Worker | None = None
+_heartbeat: HeartbeatHandle | None = None
 
 
 async def get_integration_credentials(
@@ -292,6 +294,8 @@ async def start_worker() -> None:
         },
     )
 
+    _heartbeat = start_worker_heartbeat(QUEUE_NAME)
+
     logger.info("Mutation worker started successfully")
 
     # Keep the worker running
@@ -305,10 +309,14 @@ async def start_worker() -> None:
 
 async def stop_worker() -> None:
     """Stop the BullMQ mutation worker."""
-    global _worker
+    global _worker, _heartbeat
 
     if _worker:
         logger.info("Stopping mutation worker...")
         await _worker.close()
         _worker = None
         logger.info("Mutation worker stopped")
+
+    if _heartbeat:
+        await _heartbeat.stop()
+        _heartbeat = None

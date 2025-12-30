@@ -1,6 +1,7 @@
 import { Worker, Job } from 'bullmq'
 import { getRedisConnection } from '@/lib/redis'
 import { SYNC_QUEUE_NAME } from '@/queues/syncQueue'
+import { startWorkerHeartbeat } from '@/lib/workerHeartbeat'
 
 interface SyncJobData {
   workspaceId: string
@@ -47,6 +48,8 @@ if (
       connection: getRedisConnection(),
       concurrency: 5,
     })
+
+    startWorkerHeartbeat(SYNC_QUEUE_NAME)
 
     globalWorkers._syncWorker.on('completed', (job) => {
       console.log(`[SyncWorker] Job ${job.id} completed`)

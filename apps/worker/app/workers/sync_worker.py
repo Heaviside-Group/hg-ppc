@@ -9,12 +9,14 @@ from app.config import settings
 from app.crypto import decrypt_json
 from app.db import get_db, set_workspace_context
 from app.integrations import GoogleAdsIntegration, MetaAdsIntegration
+from app.workers.heartbeat import start_worker_heartbeat, HeartbeatHandle
 
 logger = logging.getLogger(__name__)
 
 QUEUE_NAME = "ppc-sync"
 
 _worker: Worker | None = None
+_heartbeat: HeartbeatHandle | None = None
 
 
 async def get_integration_credentials(
@@ -168,6 +170,8 @@ async def start_worker() -> None:
         },
     )
 
+    _heartbeat = start_worker_heartbeat(QUEUE_NAME)
+
     logger.info("Sync worker started successfully")
 
     # Keep the worker running - worker processes jobs automatically
@@ -181,10 +185,14 @@ async def start_worker() -> None:
 
 async def stop_worker() -> None:
     """Stop the BullMQ worker."""
-    global _worker
+    global _worker, _heartbeat
 
     if _worker:
         logger.info("Stopping sync worker...")
         await _worker.close()
         _worker = None
         logger.info("Sync worker stopped")
+
+    if _heartbeat:
+        await _heartbeat.stop()
+        _heartbeat = None
