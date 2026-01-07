@@ -9,6 +9,12 @@ export async function register() {
   // Only run on server-side Node.js (not edge, not client)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     console.log('[Instrumentation] Loading workers via Next.js instrumentation hook...')
+    const workerRole = (process.env.WORKER_ROLE ?? 'all').toLowerCase()
+
+    if (workerRole !== 'all' && workerRole !== 'worker') {
+      console.log(`[Instrumentation] Skipping workers for role: ${workerRole}`)
+      return
+    }
 
     try {
       // Import workers - they register BullMQ processors on import

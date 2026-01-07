@@ -1,0 +1,22 @@
+FROM node:20-alpine AS runner
+
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+RUN corepack enable pnpm
+
+COPY pnpm-workspace.yaml ./
+COPY package.json pnpm-lock.yaml* ./
+COPY turbo.json ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/db/package.json ./packages/db/
+
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+CMD ["pnpm", "--filter", "@hg-ppc/web", "workers:start"]
