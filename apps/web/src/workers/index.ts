@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 
-import dotenv from 'dotenv'
-import path from 'path'
-
-const envPath = path.join(process.cwd(), 'apps/web/.env.local')
-dotenv.config({ path: envPath })
-
 type BullWorkerHandle = { close: () => Promise<void> }
 
 let bullWorkers: BullWorkerHandle[] = []
