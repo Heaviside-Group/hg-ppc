@@ -27,10 +27,10 @@ pnpm dev              # Start all apps in dev mode
 pnpm build            # Build all apps
 pnpm lint             # Lint all packages
 
-# Database
-pnpm db:generate      # Generate Prisma client
+# Database (Drizzle ORM)
+pnpm db:generate      # Generate migrations
 pnpm db:migrate       # Run migrations
-pnpm db:push          # Push schema changes
+pnpm db:push          # Push schema changes directly to DB
 ```
 
 ## Google Ads API Status
@@ -43,13 +43,19 @@ See `docs/google-ads-api.md` for:
 
 ## Environment Variables
 
-Required in `apps/web/.env.local`:
+Copy example files and configure:
 ```bash
-# Google Ads API (per MCC)
-GOOGLE_ADS_DEVELOPER_TOKEN_GARAGE_DOOR=
-GOOGLE_ADS_DEVELOPER_TOKEN_PAVING=
-GOOGLE_ADS_DEVELOPER_TOKEN_HEAVISIDE=
-# + OAuth credentials (client ID, secret, refresh token)
+cp .env.example .env.local
+cp apps/web/.env.local.example apps/web/.env.local
+cp apps/worker/.env.example apps/worker/.env
 ```
 
-See `.env.example` for full list.
+Required environment variables:
+- **Database**: `DATABASE_URL`, `DATABASE_DIRECT_URL`
+- **Redis**: `REDIS_URL` (for BullMQ job queue)
+- **Auth**: `NEXTAUTH_URL`, `NEXTAUTH_SECRET`
+- **Encryption**: `ENCRYPTION_KEY` (32-byte hex for OAuth token encryption)
+- **Google Ads**: `GOOGLE_ADS_DEVELOPER_TOKEN`, OAuth credentials
+- **Meta Ads**: `META_APP_ID`, `META_APP_SECRET`
+
+See example files for full configuration details.

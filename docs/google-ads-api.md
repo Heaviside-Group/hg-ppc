@@ -8,7 +8,7 @@ Integration with Google Ads API to pull campaign performance data for client rep
 
 | MCC Account | Developer Token | Access Level | Status | Contact Email |
 |-------------|-----------------|--------------|--------|---------------|
-| Garage Door Marketers | `u2lyH67_WGfdQ-3cONtClw` | Explorer | Basic Access applied (pending since late Dec 2025) | chris@garagedoormarketers.com |
+| Garage Door Marketers | `u2lyH67_WGfdQ-3cONtClw` | Explorer | Basic Access applied (pending since late Dec 2024) | chris@garagedoormarketers.com |
 | Paving Marketers | Not applied | N/A | **TODO: Apply** | TBD |
 | Heaviside | Not applied | N/A | **TODO: Apply** | TBD |
 
@@ -36,7 +36,28 @@ Integration with Google Ads API to pull campaign performance data for client rep
 
 ## Environment Variables
 
-Once approved, add to `.env.local`:
+### Current Implementation
+
+The application currently uses generic environment variables (see `.env.example`):
+
+```bash
+GOOGLE_ADS_DEVELOPER_TOKEN=your-developer-token
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+```
+
+OAuth tokens are stored **encrypted in the database** per workspace, linked to their respective MCCs through the `integrations` table.
+
+### Multi-MCC Strategy
+
+For managing multiple MCCs, there are two approaches:
+
+**Option 1: Database-driven (Current)** - Store OAuth credentials per workspace in the database with encryption
+- ✅ Supports dynamic MCC management
+- ✅ Credentials can be rotated without code deployment
+- ✅ Users can connect their own MCCs via OAuth flow
+
+**Option 2: Environment-based (Alternative)** - Use tenant-specific env vars:
 
 ```bash
 # Google Ads API - Garage Door Marketers MCC
